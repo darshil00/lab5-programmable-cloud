@@ -2,44 +2,12 @@
 
 import os
 import time
-import os
-import time
 
+import google.auth
 import googleapiclient.discovery
-import google.oauth2.service_account as service_account
-
-import googleapiclient.discovery
-import google.oauth2.service_account
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-CREDENTIALS_FILE = os.path.join(
-    BASE_DIR,
-    "service-credentials.json"
-)
-
-VM1_STARTUP_FILE = os.path.join(
-    BASE_DIR,
-    "vm1-startup-script.sh"
-)
-
-VM2_STARTUP_FILE = os.path.join(
-    BASE_DIR,
-    "vm2-startup-script.sh"
-)
-
-VM1_LAUNCH_FILE = os.path.join(
-    BASE_DIR,
-    "vm1-launch-vm2.py"
-)
-
-
-credentials = service_account.Credentials.from_service_account_file(
-    CREDENTIALS_FILE
-)
-
-project = os.getenv("GOOGLE_CLOUD_PROJECT") or "alien-gantry-506723-p1"
+credentials, project = google.auth.default()
 
 compute = googleapiclient.discovery.build(
     "compute",
@@ -47,9 +15,8 @@ compute = googleapiclient.discovery.build(
     credentials=credentials
 )
 
-
 ZONE = "us-central1-a"
-INSTANCE_NAME = "lab5-part3-vm1"
+INSTANCE_NAME = "lab5-part3-vm2"
 
 
 def wait_for_operation(compute, project, zone, operation_name):
@@ -68,18 +35,9 @@ def wait_for_operation(compute, project, zone, operation_name):
         time.sleep(1)
 
 
-def create_vm1():
-    with open(VM1_STARTUP_FILE, "r") as f:
-        vm1_startup_script = f.read()
-
-    with open(VM2_STARTUP_FILE, "r") as f:
-        vm2_startup_script = f.read()
-
-    with open(VM1_LAUNCH_FILE, "r") as f:
-        vm1_launch_code = f.read()
-
-    with open(CREDENTIALS_FILE, "r") as f:
-        service_credentials = f.read()
+def create_vm2():
+    with open("/srv/vm2-startup-script.sh", "r") as f:
+        startup_script = f.read()
 
     image_response = compute.images().getFromFamily(
         project="ubuntu-os-cloud",
@@ -106,7 +64,6 @@ def create_vm1():
         "networkInterfaces": [
             {
                 "network": "global/networks/default",
-
                 "accessConfigs": [
                     {
                         "type": "ONE_TO_ONE_NAT",
@@ -116,37 +73,21 @@ def create_vm1():
             }
         ],
 
-        "tags": {
-            "items": ["allow-5000"]
-        },
-
         "metadata": {
             "items": [
                 {
                     "key": "startup-script",
-                    "value": vm1_startup_script
-                },
-                {
-                    "key": "vm2-startup-script",
-                    "value": vm2_startup_script
-                },
-                {
-                    "key": "vm1-launch-vm2-code",
-                    "value": vm1_launch_code
-                },
-                {
-                    "key": "service-credentials",
-                    "value": service_credentials
-                },
-                {
-                    "key": "project",
-                    "value": project
+                    "value": startup_script
                 }
             ]
+        },
+
+        "tags": {
+            "items": ["allow-5000"]
         }
     }
 
-    print(f"Creating VM-1 '{INSTANCE_NAME}'...")
+    print(f"Creating {INSTANCE_NAME}...")
 
     operation = compute.instances().insert(
         project=project,
@@ -161,8 +102,8 @@ def create_vm1():
         operation["name"]
     )
 
-    print("VM-1 created successfully.")
+    print(f"{INSTANCE_NAME} created.")
 
 
 if __name__ == "__main__":
-    create_vm1()
+    create_vm2()
